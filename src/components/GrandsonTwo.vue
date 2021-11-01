@@ -10,7 +10,7 @@ export default {
       this.$emit('fn1', '孙级触发')
     }, 1000)
     setTimeout(() => {
-      this.$emit('click')
+      this.$emit('click', '孙级触发')
     }, 2000)
   }
 }

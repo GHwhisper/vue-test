@@ -59,11 +59,11 @@ export default {
     func4() {
       console.log('@写法绑定的fn4事件')
     },
-    func5() {
-      console.log('click func5')
+    func5(val) {
+      console.log('click func5' + ' ' + val)
     },
     func6() {
-      console.log('click func6')
+      console.log('click func6 原生事件')
     }
   }
 }
