@@ -1,12 +1,21 @@
 <template>
   <div id="app">
-    <h1>父级：{{ parentMessage }}</h1>
-    <button @click="handleClick">父级按钮</button>
-    <child v-model="parentMessage"></child>
+    <section>
+      <h3>1、v-model绑定</h3>
+      <h4>父级：{{ parentMessage }}</h4>
+      <button @click="handleClick">父级按钮</button>
+      <child v-model="parentMessage"></child>
+    </section>
     <hr>
-    <child-two class="child-two" hello="hello" type="password"></child-two>
+    <section>
+      <h3>2、$attrs的使用</h3>
+      <child-two class="child-two" hello="hello" type="password"></child-two>
+    </section>
     <hr>
-    <child-three v-on:fn1="func1" @fn2="func2" v-on:fn3.native="func3" @fn4.native="func4" @click="func5"></child-three>
+    <section>
+      <h3>3、$listeners的使用</h3>
+      <child-three v-on:fn1="func1" @fn2="func2" v-on:fn3.native="func3" @fn4.native="func4" @click="func5"></child-three>
+    </section>
   </div>
 </template>
 

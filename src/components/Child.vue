@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h2>子级：{{ msg }}</h2>
+    <h4>子级：{{ msg }}</h4>
     <button @click="handleChildClick">子级按钮</button>
   </div>
 </template>
