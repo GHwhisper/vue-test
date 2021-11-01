@@ -18,7 +18,7 @@ export default {
   //   hello: String
   // },
   mounted() {
-    console.log(this.$attrs)
+    console.log('$attrs', this.$attrs)
   }
 }
 </script>

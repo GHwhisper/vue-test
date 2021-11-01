@@ -14,7 +14,14 @@
     <hr>
     <section>
       <h3>3、$listeners的使用</h3>
-      <child-three v-on:fn1="func1" @fn2="func2" v-on:fn3.native="func3" @fn4.native="func4" @click="func5"></child-three>
+      <child-three
+        v-on:fn1="func1"
+        @fn2="func2"
+        v-on:fn3.native="func3"
+        @fn4.native="func4"
+        @click="func5"
+        @click.native="func6"
+      ></child-three>
     </section>
   </div>
 </template>
@@ -53,7 +60,10 @@ export default {
       console.log('@写法绑定的fn4事件')
     },
     func5() {
-      console.log('click')
+      console.log('click func5')
+    },
+    func6() {
+      console.log('click func6')
     }
   }
 }

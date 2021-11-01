@@ -14,7 +14,8 @@ export default {
     GrandsonTwo
   },
   mounted() {
-    console.log(this.$listeners)
+    console.log('$listeners:', this.$listeners)
+    this.$emit('fn1', '子级触发')
     this.$emit('fn2', '子级触发')
   }
 }
