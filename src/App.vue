@@ -1,17 +1,22 @@
 <template>
   <div id="app">
+
     <section>
       <h3>1、v-model绑定</h3>
       <h4>父级：{{ parentMessage }}</h4>
       <button @click="handleClick">父级按钮</button>
       <child v-model="parentMessage"></child>
     </section>
+
     <hr>
+
     <section>
       <h3>2、$attrs的使用</h3>
       <child-two class="child-two" hello="hello" type="password"></child-two>
     </section>
+
     <hr>
+
     <section>
       <h3>3、$listeners的使用</h3>
       <child-three
@@ -23,6 +28,26 @@
         @click.native="func6"
       ></child-three>
     </section>
+
+    <hr>
+
+    <section>
+      <h3>4、$slots 非作用域插槽的使用</h3>
+      <my-input>
+        <template slot="prepend">prepend</template>
+        <template slot="append">append</template>
+      </my-input>
+    </section>
+
+    <hr>
+
+    <section>
+      <h3>5、$scopedSlots 作用域插槽的使用</h3>
+      <!--<my-input2>-->
+      <!--  <template slot="prepend">prepend</template>-->
+      <!--  <template slot="append">append</template>-->
+      <!--</my-input2>-->
+    </section>
   </div>
 </template>
 
@@ -30,6 +55,8 @@
 import Child from './components/Child'
 import ChildTwo from './components/ChildTwo'
 import ChildThree from './components/ChildThree'
+import MyInput from './components/MyInput'
+// import MyInput2 from './components/MyInput2'
 
 export default {
   name: 'App',
@@ -37,6 +64,8 @@ export default {
     Child,
     ChildTwo,
     ChildThree,
+    MyInput,
+    // MyInput2,
   },
   data() {
     return {
