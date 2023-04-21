@@ -48,6 +48,13 @@
       <!--  <template slot="append">append</template>-->
       <!--</my-input2>-->
     </section>
+
+    <hr>
+
+    <section>
+      <h3>6、:root 和 css 变量的使用</h3>
+      <p class="test-class">hello world</p>
+    </section>
   </div>
 </template>
 
@@ -101,5 +108,11 @@ export default {
 <style>
 .child-two {
   color: lightgreen;
+}
+
+.test-class {
+  color: var(--test-color);
+  font-size: var(--medium-font);
+  font-weight: var(--bold-font);
 }
 </style>
