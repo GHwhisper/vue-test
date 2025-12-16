@@ -2,8 +2,8 @@
   <div class="collapse-item">
     <div class="collapse-header" @click="onToggle">
       <div class="header-title">{{ title }}</div>
-      <div class="header-icon" :class="{ 'is-collapsed': isCollapse }">
-        {{ isCollapse ? '⬇️' : '⬆️' }}
+      <div class="header-icon">
+        {{ isCollapse ? '⬆️' : '⬇️' }}
       </div>
     </div>
 
