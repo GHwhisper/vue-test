@@ -7,11 +7,9 @@
       </div>
     </div>
 
-    <!-- 使用CSS transition替代JS动画 -->
     <div
       ref="contentRef"
       class="collapse-content"
-      :class="{ 'is-expanded': !isCollapse }"
       :style="contentStyle"
     >
       <div class="content-inner" ref="innerRef">
@@ -30,93 +28,112 @@ export default {
     config: {
       type: Object,
       default: () => ({
-        minHeight: 20,
-        bounceOffset: 10,
-        duration: 500,
-        opacityDuration: 100
+        minHeight: 20,          // 收起后保留的高度
+        bounceOffset: 10,       // 回弹偏移量
+        duration: 500,          // 动画总时长
+        opacityDuration: 100    // 透明度动画时长
       })
     }
   },
 
   data() {
     return {
-      isCollapse: true,
+      isCollapse: false,  // 默认展开
       contentHeight: 0,
-      isMeasuring: false,
-      isTransitioning: false
+      isAnimating: false,
+      animationId: null,
+      currentHeight: 0,
+      currentOpacity: 1,
+      // 缓动函数
+      easingFunctions: {
+        easeOutQuad: (t) => t * (2 - t),
+        easeInOutQuad: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+        easeOutElastic: (t) => {
+          const p = 0.3;
+          return Math.pow(2, -10 * t) * Math.sin((t - p / 4) * (2 * Math.PI) / p) + 1;
+        }
+      },
     };
   },
 
   computed: {
     contentStyle() {
       return {
-        '--min-height': `${this.config.minHeight}px`,
-        '--bounce-offset': `${this.config.bounceOffset}px`,
-        '--duration': `${this.config.duration}ms`,
-        '--opacity-duration': `${this.config.opacityDuration}ms`,
-        '--max-height': this.isCollapse ? '0px' : `${this.contentHeight}px`
+        height: `${this.currentHeight}px`,
+        opacity: this.currentOpacity,
+        overflow: 'hidden',
+        transition: 'none'  // 禁用CSS过渡，完全由JS控制
       };
     }
   },
 
   mounted() {
-    // 测量内容高度
-    this.measureContentHeight();
+    // 初始测量内容高度
+    this.$nextTick(() => {
+      this.measureContentHeight();
+      // 初始展开状态
+      this.currentHeight = this.contentHeight;
+    });
 
     // 监听内容变化
     this.setupResizeObserver();
   },
 
   beforeDestroy() {
+    this.cancelAnimation();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
   },
 
   methods: {
-    onToggle() {
-      if (this.isTransitioning) return;
-
-      if (!this.isCollapse) {
-        // 收起时直接切换类，触发CSS动画
-        this.isCollapse = true;
-      } else {
-        // 展开前确保测量了正确的高度
-        this.measureContentHeight();
-        this.isCollapse = false;
+    cancelAnimation() {
+      if (this.animationId) {
+        cancelAnimationFrame(this.animationId);
+        this.animationId = null;
       }
+      this.isAnimating = false;
+    },
 
-      this.isTransitioning = true;
+    onToggle() {
+      if (this.isAnimating) return;
 
-      // 动画结束后重置状态
-      setTimeout(() => {
-        this.isTransitioning = false;
-      }, this.config.duration);
+      // 更新状态
+      this.isCollapse = !this.isCollapse;
+
+      // 收起时立即开始动画
+      if (this.isCollapse) {
+        this.collapse();
+      } else {
+        // 展开前重新测量高度
+        this.measureContentHeight();
+        this.expand();
+      }
     },
 
     measureContentHeight() {
-      // 使用异步避免阻塞主线程
-      requestAnimationFrame(() => {
-        if (this.$refs.innerRef) {
-          // 获取实际内容高度
-          this.contentHeight = this.$refs.innerRef.scrollHeight;
-        }
-      });
+      if (this.$refs.innerRef) {
+        const innerEl = this.$refs.innerRef;
+        // 获取准确的包含padding的内容高度
+        const computedStyle = window.getComputedStyle(innerEl);
+        const height = innerEl.scrollHeight;
+        const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+        const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+        this.contentHeight = height + paddingTop + paddingBottom;
+      }
     },
 
     setupResizeObserver() {
-      if (typeof ResizeObserver !== 'undefined') {
+      if ('ResizeObserver' in window) {
         this.resizeObserver = new ResizeObserver(() => {
-          // 防抖处理，避免频繁测量
-          if (this.measureTimer) {
-            clearTimeout(this.measureTimer);
-          }
-
-          this.measureTimer = setTimeout(() => {
-            if (!this.isCollapse) {
-              this.measureContentHeight();
+          // 只有在展开状态下才重新测量
+          if (!this.isCollapse) {
+            this.measureContentHeight();
+            // 如果没有动画在进行，更新当前高度
+            if (!this.isAnimating) {
+              this.currentHeight = this.contentHeight;
             }
-          }, 50);
+          }
         });
 
         if (this.$refs.innerRef) {
@@ -125,9 +142,132 @@ export default {
       }
     },
 
+    // 展开动画
+    expand() {
+      this.cancelAnimation();
+      this.isAnimating = true;
+
+      const startHeight = this.config.minHeight;
+      const targetHeight = this.contentHeight;
+      const bounceHeight = targetHeight + this.config.bounceOffset;
+      const totalDuration = this.config.duration;
+      const opacityDuration = this.config.opacityDuration;
+
+      let startTime = null;
+      const animate = (timestamp) => {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const progress = Math.min(elapsed / totalDuration, 1);
+
+        let currentHeight;
+        let currentOpacity;
+
+        // 两阶段动画
+        if (progress < 0.5) {
+          // 第一阶段：展开到回弹高度
+          const stageProgress = progress * 2;
+          const easedProgress = this.easingFunctions.easeOutQuad(stageProgress);
+          currentHeight = startHeight + (bounceHeight - startHeight) * easedProgress;
+        } else {
+          // 第二阶段：回弹到实际高度
+          const stageProgress = (progress - 0.5) * 2;
+          const easedProgress = this.easingFunctions.easeOutElastic(stageProgress);
+          currentHeight = bounceHeight + (targetHeight - bounceHeight) * easedProgress;
+        }
+
+        // 透明度动画
+        const opacityProgress = Math.min(elapsed / opacityDuration, 1);
+        currentOpacity = this.easingFunctions.easeOutQuad(opacityProgress);
+
+        // 更新当前值
+        this.currentHeight = currentHeight;
+        this.currentOpacity = currentOpacity;
+
+        if (progress < 1) {
+          this.animationId = requestAnimationFrame(animate);
+        } else {
+          // 动画完成
+          this.currentHeight = targetHeight;
+          this.currentOpacity = 1;
+          this.animationId = null;
+          this.isAnimating = false;
+        }
+      };
+
+      // 设置初始状态
+      this.currentHeight = startHeight;
+      this.currentOpacity = 0;
+
+      // 开始动画
+      this.animationId = requestAnimationFrame(animate);
+    },
+
+    // 收起动画
+    collapse() {
+      this.cancelAnimation();
+      this.isAnimating = true;
+
+      const startHeight = this.contentHeight;
+      const minHeight = this.config.minHeight;
+      const bounceHeight = Math.max(minHeight - this.config.bounceOffset, 0);
+      const totalDuration = this.config.duration;
+      const opacityDuration = this.config.opacityDuration;
+
+      let startTime = null;
+      const animate = (timestamp) => {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const progress = Math.min(elapsed / totalDuration, 1);
+
+        let currentHeight;
+        let currentOpacity;
+
+        // 两阶段动画
+        if (progress < 0.5) {
+          // 第一阶段：收到回弹高度
+          const stageProgress = progress * 2;
+          const easedProgress = this.easingFunctions.easeOutQuad(stageProgress);
+          currentHeight = startHeight + (bounceHeight - startHeight) * easedProgress;
+        } else {
+          // 第二阶段：回弹到最小高度
+          const stageProgress = (progress - 0.5) * 2;
+          const easedProgress = this.easingFunctions.easeOutElastic(stageProgress);
+          currentHeight = bounceHeight + (minHeight - bounceHeight) * easedProgress;
+        }
+
+        // 透明度动画
+        const opacityProgress = Math.max(1 - elapsed / opacityDuration, 0);
+        currentOpacity = this.easingFunctions.easeOutQuad(opacityProgress);
+
+        // 更新当前值
+        this.currentHeight = currentHeight;
+        this.currentOpacity = currentOpacity;
+
+        if (progress < 1) {
+          this.animationId = requestAnimationFrame(animate);
+        } else {
+          // 动画完成
+          this.currentHeight = minHeight;
+          this.currentOpacity = 0.01; // 保持一点点透明度，避免完全消失
+          this.animationId = null;
+          this.isAnimating = false;
+        }
+      };
+
+      // 设置初始状态
+      this.currentHeight = startHeight;
+      this.currentOpacity = 1;
+
+      // 开始动画
+      this.animationId = requestAnimationFrame(animate);
+    },
+
     // 外部可调用的刷新方法
     refresh() {
       this.measureContentHeight();
+      if (!this.isCollapse && !this.isAnimating) {
+        this.currentHeight = this.contentHeight;
+      }
     }
   }
 };
@@ -180,104 +320,27 @@ export default {
 }
 
 .collapse-content {
-  /* 使用max-height和opacity实现动画 */
-  max-height: 0;
-  opacity: 0;
+  /* 注意：这里没有transition，完全由JS控制 */
   overflow: hidden;
 
-  /* 启用GPU加速 */
+  /* 强制GPU加速 */
   transform: translateZ(0);
+  will-change: height, opacity;
   backface-visibility: hidden;
-  perspective: 1000;
-
-  /* 使用will-change提示浏览器 */
-  will-change: max-height, opacity;
-
-  /* 过渡效果 */
-  transition-property: max-height, opacity;
-  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
-  transition-duration: var(--duration);
-}
-
-/* 展开状态 */
-.collapse-content.is-expanded {
-  max-height: var(--max-height);
-  opacity: 1;
-
-  /* 展开时的特殊处理：使用动画关键帧实现回弹效果 */
-  animation: expandAnimation var(--duration) cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* 收起状态 */
-.collapse-content:not(.is-expanded) {
-  max-height: 0;
-  opacity: 0;
-
-  /* 收起时的特殊处理：使用动画关键帧实现回弹效果 */
-  animation: collapseAnimation var(--duration) cubic-bezier(0.34, 1.56, 0.64, 1);
+  -webkit-font-smoothing: antialiased;
+  contain: content;
 }
 
 .content-inner {
   padding: 20px;
-  opacity: 1;
-  transition: opacity var(--opacity-duration) ease;
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
-/* 收起时内容透明度快速降低 */
-.collapse-content:not(.is-expanded) .content-inner {
-  opacity: 0.01;
-  transition: opacity var(--opacity-duration) ease;
-}
-
-/* 展开时内容透明度快速恢复 */
-.collapse-content.is-expanded .content-inner {
-  opacity: 1;
-  transition: opacity var(--opacity-duration) ease;
-}
-
-/* 关键帧动画实现回弹效果 */
-@keyframes expandAnimation {
-  0% {
-    max-height: var(--min-height);
-    opacity: 0;
-  }
-  50% {
-    max-height: calc(var(--max-height) + var(--bounce-offset));
-    opacity: 1;
-  }
-  100% {
-    max-height: var(--max-height);
-    opacity: 1;
-  }
-}
-
-@keyframes collapseAnimation {
-  0% {
-    max-height: var(--max-height);
-    opacity: 1;
-  }
-  50% {
-    max-height: calc(var(--min-height) - var(--bounce-offset));
-    opacity: 0.5;
-  }
-  100% {
-    max-height: var(--min-height);
-    opacity: 0;
-  }
-}
-
-/* 强制GPU加速和优化 */
-.collapse-content {
+/* 性能优化 */
+.collapse-content * {
+  backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  contain: content; /* 限制浏览器重绘范围 */
-}
-
-/* 性能优化：禁用动画期间的事件 */
-.collapse-content.is-transitioning {
-  pointer-events: none;
 }
 </style>
 
