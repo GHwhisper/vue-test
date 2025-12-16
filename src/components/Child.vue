@@ -2,6 +2,9 @@
   <div>
     <h4>子级：{{ msg }}</h4>
     <button @click="handleChildClick">子级按钮</button>
+    <el-dialog :visible="false" title="弹窗" v-dialog-drag>
+      hello world
+    </el-dialog>
   </div>
 </template>
 
